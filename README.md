@@ -110,19 +110,7 @@ output/
 
 ---
 
-##  UI Screenshots
 
-<p align="center">
-  <img src="docs/ui_normal.png" alt="Normal state" width="700"/>
-  <br/><em>Normal state — all conditions nominal</em>
-</p>
-
-<p align="center">
-  <img src="docs/ui_anomaly.png" alt="Anomaly detected" width="700"/>
-  <br/><em>Anomaly detected — red flash border, threat meter elevated</em>
-</p>
-
----
 
 ## Jetson Detection Screenshot
 
