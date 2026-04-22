@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Anomaly Detection System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --gold: #c8980a;
+    --gold-bright: #ffd700;
+    --gold-dim: #7a5c00;
+    --red: #c0392b;
+    --red-bright: #ff4444;
+    --blue: #1a90c8;
+    --blue-bright: #00cfff;
+    --bg: #050a10;
+    --panel: rgba(0, 20, 40, 0.85);
+    --panel-border: rgba(200, 152, 10, 0.4);
+    --text: #e8d890;
+    --text-dim: rgba(232, 216, 144, 0.5);
+    --glow: 0 0 10px rgba(200, 152, 10, 0.6), 0 0 30px rgba(200, 152, 10, 0.2);
+    --red-glow: 0 0 10px rgba(255, 68, 68, 0.8), 0 0 30px rgba(255, 68, 68, 0.4);
+    --blue-glow: 0 0 10px rgba(0, 207, 255, 0.6), 0 0 25px rgba(0, 207, 255, 0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Radial bg pulse */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120vw; height: 120vh;
+    background: radial-gradient(ellipse at center,
+      rgba(26, 144, 200, 0.04) 0%,
+      rgba(200, 152, 10, 0.02) 40%,
+      transparent 70%);
+    pointer-events: none;
+    animation: bgpulse 6s ease-in-out infinite;
+  }
+
+  @keyframes bgpulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* ── TOP HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(0, 10, 20, 0.95);
+    position: relative;
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .arc-reactor {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--blue-bright);
+    box-shadow: var(--blue-glow), inset 0 0 15px rgba(0, 207, 255, 0.3);
+    position: relative;
+    animation: reactor-spin 8s linear infinite;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .arc-reactor::before {
+    content: '';
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 207, 255, 0.6);
+    box-shadow: inset 0 0 10px rgba(0, 207, 255, 0.5);
+  }
+
+  .arc-reactor::after {
+    content: '';
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--blue-bright);
+    box-shadow: 0 0 15px var(--blue-bright), 0 0 30px rgba(0, 207, 255, 0.8);
+    animation: core-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes reactor-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes core-pulse {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  .title-block h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.3rem;
+    letter-spacing: 0.15em;
+    color: var(--gold-bright);
+    text-shadow: var(--glow);
+  }
+
+  .title-block .subtitle {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.3em;
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .sys-time {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: var(--blue-bright);
+    text-shadow: var(--blue-glow);
+    letter-spacing: 0.1em;
+  }
+
+  .status-badge {
+    padding: 4px 14px;
+    border: 1px solid var(--gold);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .status-badge.alert {
+    border-color: var(--red-bright);
+    color: var(--red-bright);
+    animation: badge-alert 0.5s ease-in-out infinite;
+  }
+
+  @keyframes badge-alert {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: var(--red-glow); }
+  }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    grid-template-rows: 1fr auto;
+    gap: 12px;
+    padding: 12px;
+    height: calc(100vh - 66px);
+  }
+
+  /* ── PANEL BASE ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    animation: scan-line 3s linear infinite;
+  }
+
+  @keyframes scan-line {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(200, 152, 10, 0.2);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Rule cards */
+  .rule-card {
+    border: 1px solid rgba(200, 152, 10, 0.25);
+    padding: 10px;
+    position: relative;
+    cursor: default;
+    transition: border-color 0.3s;
+  }
+
+  .rule-card:hover { border-color: var(--gold); }
+
+  .rule-card.active {
+    border-color: var(--red-bright);
+    background: rgba(192, 57, 43, 0.08);
+    animation: rule-flash 1s ease-in-out infinite;
+  }
+
+  @keyframes rule-flash {
+    0%, 100% { background: rgba(192, 57, 43, 0.08); }
+    50% { background: rgba(192, 57, 43, 0.18); }
+  }
+
+  .rule-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  .rule-value {
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  .rule-card.active .rule-name { color: var(--red-bright); }
+  .rule-card.active .rule-value { color: var(--red-bright); }
+
+  .rule-indicator {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    transition: all 0.3s;
+  }
+
+  .rule-card.active .rule-indicator {
+    background: var(--red-bright);
+    box-shadow: var(--red-glow);
+  }
+
+  /* Confidence bars */
+  .conf-bar-wrap { margin-bottom: 6px; }
+
+  .conf-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+
+  .conf-label span:last-child { color: var(--gold); }
+
+  .conf-bar-bg {
+    height: 4px;
+    background: rgba(200, 152, 10, 0.1);
+    border: 1px solid rgba(200, 152, 10, 0.2);
+    overflow: hidden;
+  }
+
+  .conf-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+    transition: width 0.5s ease;
+    box-shadow: 0 0 8px var(--gold);
+  }
+
+  /* ── CENTER PANEL (video feed) ── */
+  .center-panel {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .video-container {
+    flex: 1;
+    position: relative;
+    border: 1px solid var(--panel-border);
+    background: #000;
+    overflow: hidden;
+  }
+
+  .video-container video,
+  .video-container canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .video-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* Corner brackets */
+  .corner {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--gold);
+    border-style: solid;
+    opacity: 0.7;
+    transition: border-color 0.3s, opacity 0.3s;
+  }
+
+  .video-container.anomaly-active .corner {
+    border-color: var(--red-bright);
+    opacity: 1;
+    animation: corner-flash 0.4s ease-in-out infinite;
+  }
+
+  @keyframes corner-flash {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  .corner.tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+  .scan-h {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200, 152, 10, 0.6), transparent);
+    animation: scan-h-anim 4s linear infinite;
+  }
+
+  @keyframes scan-h-anim {
+    0% { top: 0%; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Anomaly flash overlay */
+  .anomaly-flash {
+    position: absolute;
+    inset: 0;
+    border: 3px solid var(--red-bright);
+    box-shadow: inset 0 0 40px rgba(255, 68, 68, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+
+  .video-container.anomaly-active .anomaly-flash {
+    opacity: 1;
+    animation: red-flash 0.5s ease-in-out infinite;
+  }
+
+  @keyframes red-flash {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* Anomaly tag */
+  .anomaly-tag {
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--red-bright);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 4px 16px;
+    border: 1px solid var(--red-bright);
+    opacity: 0;
+    text-shadow: var(--red-glow);
+    transition: opacity 0.2s;
+  }
+
+  .video-container.anomaly-active .anomaly-tag { opacity: 1; }
+
+  /* Bottom meta bar */
+  .video-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: rgba(0, 10, 20, 0.9);
+    border: 1px solid var(--panel-border);
+    border-top: none;
+    font-size: 0.6rem;
+    color: var(--text-dim);
+  }
+
+  .fps-counter { color: var(--blue-bright); }
+  .frame-id { color: var(--gold-dim); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .stat-box {
+    border: 1px solid rgba(200, 152, 10, 0.25);
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--gold-bright);
+    text-shadow: var(--glow);
+    line-height: 1;
+  }
+
+  .stat-val.danger { color: var(--red-bright); text-shadow: var(--red-glow); }
+
+  .stat-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Anomaly log */
+  .log-scroll {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 240px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-dim) transparent;
+  }
+
+  .log-entry {
+    padding: 5px 8px;
+    border-left: 2px solid var(--gold-dim);
+    margin-bottom: 4px;
+    font-size: 0.6rem;
+    line-height: 1.5;
+    background: rgba(200, 152, 10, 0.03);
+    opacity: 0;
+    animation: log-appear 0.4s forwards;
+  }
+
+  .log-entry.critical {
+    border-left-color: var(--red-bright);
+    background: rgba(255, 68, 68, 0.06);
+    color: var(--red-bright);
+  }
+
+  @keyframes log-appear {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .log-time { color: var(--gold-dim); margin-right: 6px; }
+  .log-msg { color: var(--text); }
+  .log-entry.critical .log-msg { color: var(--red-bright); }
+
+  /* Circular threat meter */
+  .threat-meter-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0 4px;
+  }
+
+  .threat-svg {
+    width: 100px; height: 100px;
+  }
+
+  .threat-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .threat-val-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  /* ── BOTTOM BAR ── */
+  .bottom-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .bottom-stat {
+    flex: 1;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bstat-icon {
+    font-size: 1.2rem;
+    opacity: 0.7;
+  }
+
+  .bstat-data { flex: 1; }
+
+  .bstat-val {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gold-bright);
+  }
+
+  .bstat-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+  }
+
+  /* Pulse dot */
+  .pulse-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: var(--glow);
+    animation: dot-pulse 1.2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  .pulse-dot.red {
+    background: var(--red-bright);
+    box-shadow: var(--red-glow);
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.6; }
+  }
+
+  /* Hex grid bg deco */
+  .hex-bg {
+    position: fixed;
+    top: 0; right: 0;
+    width: 300px; height: 300px;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='64'%3E%3Cpath d='M28 0 l28 16 v32 l-28 16 -28-16V16z' fill='none' stroke='%23c8980a' stroke-width='1'/%3E%3C/svg%3E");
+    background-size: 56px 64px;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+  /* No-camera message */
+  .no-cam {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+  }
+
+  .no-cam-icon { font-size: 2rem; opacity: 0.4; }
+</style>
+</head>
+<body>
+<div class="hex-bg"></div>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo-block">
+    <div class="arc-reactor"></div>
+    <div class="title-block">
+      <h1>J.A.R.V.I.S.</h1>
+      <div class="subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM — ANOMALY DETECTION MODULE v3.7</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sys-time" id="sysTime">00:00:00</div>
+    <div class="status-badge" id="statusBadge">SYSTEM ONLINE</div>
+  </div>
+</header>
+
+<!-- ═══ MAIN GRID ═══ -->
+<div class="main-grid">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <div class="panel">
+      <div class="panel-title">⬡ Active Rules</div>
+      <div class="rule-card" id="rule-person" data-rule="person_count">
+        <div class="rule-indicator"></div>
+        <div class="rule-name">PERSONNEL COUNT</div>
+        <div class="rule-value" id="rule-person-val">Monitoring…</div>
+      </div>
+      <div style="height:6px"></div>
+      <div class="rule-card" id="rule-phone" data-rule="forbidden">
+        <div class="rule-indicator"></div>
+        <div class="rule-name">FORBIDDEN OBJECT</div>
+        <div class="rule-value" id="rule-phone-val">Cell phone: CLEAR</div>
+      </div>
+      <div style="height:6px"></div>
+      <div class="rule-card" id="rule-proximity" data-rule="proximity">
+        <div class="rule-indicator"></div>
+        <div class="rule-name">PROXIMITY ALERT</div>
+        <div class="rule-value" id="rule-prox-val">Spacing: NORMAL</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">⬡ Detection Confidence</div>
+      <div id="confBars">
+        <div class="conf-bar-wrap">
+          <div class="conf-label"><span>Person</span><span id="conf-person">—</span></div>
+          <div class="conf-bar-bg"><div class="conf-bar-fill" id="bar-person" style="width:0%"></div></div>
+        </div>
+        <div class="conf-bar-wrap">
+          <div class="conf-label"><span>Cell phone</span><span id="conf-phone">—</span></div>
+          <div class="conf-bar-bg"><div class="conf-bar-fill" id="bar-phone" style="width:0%"></div></div>
+        </div>
+        <div class="conf-bar-wrap">
+          <div class="conf-label"><span>Bottle</span><span id="conf-bottle">—</span></div>
+          <div class="conf-bar-bg"><div class="conf-bar-fill" id="bar-bottle" style="width:0%"></div></div>
+        </div>
+        <div class="conf-bar-wrap">
+          <div class="conf-label"><span>Chair</span><span id="conf-chair">—</span></div>
+          <div class="conf-bar-bg"><div class="conf-bar-fill" id="bar-chair" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">⬡ Threat Level</div>
+      <div class="threat-meter-wrap">
+        <svg class="threat-svg" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(200,152,10,0.1)" stroke-width="8"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="var(--gold)" stroke-width="8"
+            stroke-dasharray="251.2" stroke-dashoffset="251.2"
+            stroke-linecap="round"
+            transform="rotate(-90 50 50)"
+            id="threatArc"
+            style="transition: stroke-dashoffset 0.6s ease, stroke 0.6s ease;"/>
+          <text x="50" y="46" text-anchor="middle" font-family="Orbitron,sans-serif" font-size="16" font-weight="700" fill="var(--gold)" id="threatPct">0%</text>
+          <text x="50" y="60" text-anchor="middle" font-family="Share Tech Mono,monospace" font-size="7" fill="rgba(232,216,144,0.5)">THREAT</text>
+        </svg>
+        <div class="threat-label" id="threatLabel">CONDITION: GREEN</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER VIDEO PANEL -->
+  <div style="display:flex; flex-direction:column; gap:0;">
+    <div class="video-container panel" id="videoContainer" style="border:none; padding:0;">
+      <!-- Live camera feed rendered here -->
+      <video id="liveVideo" autoplay muted playsinline style="width:100%;height:100%;object-fit:contain;display:block;background:#000;"></video>
+      <canvas id="overlayCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+      <div class="no-cam" id="noCam">
+        <div class="no-cam-icon">📷</div>
+        <div>AWAITING CAMERA FEED</div>
+        <div style="font-size:0.6rem; opacity:0.5;">Grant camera permission to activate</div>
+      </div>
+
+      <!-- HUD overlays -->
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="scan-h"></div>
+      <div class="anomaly-flash"></div>
+      <div class="anomaly-tag" id="anomalyTag">⚠ ANOMALY DETECTED</div>
+    </div>
+    <div class="video-meta">
+      <span>SRC: JETSON-CAM-0 | COCO-DETECTNET</span>
+      <span class="fps-counter" id="fpsDisplay">FPS: —</span>
+      <span>LAT: <span id="latDisplay">—</span>ms</span>
+      <span class="frame-id">FRAME#<span id="frameDisplay">000000</span></span>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <div class="panel">
+      <div class="panel-title">⬡ Detection Stats</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val" id="statPersons">0</div>
+          <div class="stat-label">Persons</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val danger" id="statAnomalies">0</div>
+          <div class="stat-label">Anomalies</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statObjects">0</div>
+          <div class="stat-label">Objects</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statFrames">0</div>
+          <div class="stat-label">Frames</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+      <div class="panel-title">⬡ Event Log</div>
+      <div class="log-scroll" id="logScroll"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">⬡ Last Anomaly</div>
+      <div style="font-size:0.7rem; color:var(--text-dim); line-height:1.6;">
+        <div>TYPE: <span id="lastType" style="color:var(--text)">—</span></div>
+        <div>TIME: <span id="lastTime" style="color:var(--gold)">—</span></div>
+        <div>SINCE: <span id="lastSince" style="color:var(--blue-bright)">—</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div class="bottom-stat">
+      <div class="pulse-dot" id="liveDot"></div>
+      <div class="bstat-data">
+        <div class="bstat-val" id="uptime">00:00:00</div>
+        <div class="bstat-label">SYSTEM UPTIME</div>
+      </div>
+    </div>
+    <div class="bottom-stat">
+      <div class="bstat-data">
+        <div class="bstat-val" id="anomalyRate">0.0/min</div>
+        <div class="bstat-label">ANOMALY RATE</div>
+      </div>
+    </div>
+    <div class="bottom-stat">
+      <div class="bstat-data">
+        <div class="bstat-val" id="modelLabel">COCO-DetectNet</div>
+        <div class="bstat-label">ACTIVE MODEL</div>
+      </div>
+    </div>
+    <div class="bottom-stat">
+      <div class="bstat-data">
+        <div class="bstat-val" style="color:var(--blue-bright)" id="gpuLoad">GPU: JETSON</div>
+        <div class="bstat-label">COMPUTE NODE</div>
+      </div>
+    </div>
+    <div class="bottom-stat">
+      <div class="bstat-data">
+        <div class="bstat-val" id="totalLog">0 events</div>
+        <div class="bstat-label">TOTAL LOGGED</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//   J.A.R.V.I.S. Anomaly Detection UI
+//   Iron Man Theme — Jetson Edition
+// ═══════════════════════════════════════
+
+const state = {
+  anomalyCount: 0,
+  frameCount: 0,
+  objectCount: 0,
+  personCount: 0,
+  totalLogged: 0,
+  lastAnomalyTime: null,
+  lastAnomalyType: null,
+  startTime: Date.now(),
+  fps: 0,
+  fpsFrames: 0,
+  fpsLast: Date.now(),
+  isAnomaly: false,
+  threatLevel: 0,           // 0–100
+  anomalyTimestamps: [],    // for rate calc
+  logLines: [],
+};
+
+// ── Detection rules config ──
+const RULES = {
+  max_persons: 3,
+  forbidden_classes: ['cell phone', 'cellphone'],
+  proximity_threshold: 0.3,  // fraction of frame width
+};
+
+// ── Anomaly rules ──
+function evaluateAnomalies(detections) {
+  const reasons = [];
+  const persons = detections.filter(d => d.class === 'person');
+  const personCount = persons.length;
+
+  // Rule 1: person count
+  if (personCount > RULES.max_persons) {
+    reasons.push(`OVERCROWD: ${personCount} persons detected (max ${RULES.max_persons})`);
+    setRuleActive('rule-person', true);
+    document.getElementById('rule-person-val').textContent = `${personCount} persons — LIMIT EXCEEDED`;
+  } else {
+    setRuleActive('rule-person', false);
+    document.getElementById('rule-person-val').textContent = `${personCount} person(s) — WITHIN LIMIT`;
+  }
+
+  // Rule 2: forbidden objects
+  const forbidden = detections.filter(d => RULES.forbidden_classes.includes(d.class.toLowerCase()));
+  if (forbidden.length > 0) {
+    reasons.push(`FORBIDDEN OBJECT: ${forbidden[0].class} detected`);
+    setRuleActive('rule-phone', true);
+    document.getElementById('rule-phone-val').textContent = `Cell phone: DETECTED`;
+  } else {
+    setRuleActive('rule-phone', false);
+    document.getElementById('rule-phone-val').textContent = `Cell phone: CLEAR`;
+  }
+
+  // Rule 3: proximity (if 2+ persons)
+  if (persons.length >= 2) {
+    for (let i = 0; i < persons.length; i++) {
+      for (let j = i + 1; j < persons.length; j++) {
+        const dx = Math.abs(persons[i].cx - persons[j].cx);
+        if (dx < RULES.proximity_threshold) {
+          reasons.push(`PROXIMITY BREACH: persons too close (${(dx * 100).toFixed(0)}% apart)`);
+          setRuleActive('rule-proximity', true);
+          document.getElementById('rule-prox-val').textContent = `Spacing: ${(dx * 100).toFixed(0)}% — TOO CLOSE`;
+          break;
+        }
+      }
+    }
+    if (reasons.every(r => !r.startsWith('PROXIMITY'))) {
+      setRuleActive('rule-proximity', false);
+      document.getElementById('rule-prox-val').textContent = `Spacing: NORMAL`;
+    }
+  } else {
+    setRuleActive('rule-proximity', false);
+    document.getElementById('rule-prox-val').textContent = `Spacing: NORMAL`;
+  }
+
+  return reasons;
+}
+
+function setRuleActive(id, active) {
+  const el = document.getElementById(id);
+  if (active) el.classList.add('active');
+  else el.classList.remove('active');
+}
+
+// ── Threat level update ──
+function updateThreat(level) {
+  state.threatLevel = Math.min(100, Math.max(0, level));
+  const arc = document.getElementById('threatArc');
+  const circumference = 251.2;
+  const offset = circumference - (state.threatLevel / 100) * circumference;
+  arc.style.strokeDashoffset = offset;
+
+  let color, label;
+  if (state.threatLevel < 30) {
+    color = 'var(--gold)'; label = 'CONDITION: GREEN';
+  } else if (state.threatLevel < 60) {
+    color = '#e8a020'; label = 'CONDITION: YELLOW';
+  } else if (state.threatLevel < 85) {
+    color = '#e85020'; label = 'CONDITION: ORANGE';
+  } else {
+    color = 'var(--red-bright)'; label = 'CONDITION: RED';
+  }
+  arc.style.stroke = color;
+  document.getElementById('threatPct').textContent = state.threatLevel + '%';
+  document.getElementById('threatPct').style.fill = color;
+  document.getElementById('threatLabel').textContent = label;
+}
+
+// ── Log entry ──
+function addLog(msg, isCritical = false) {
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
+  const scroll = document.getElementById('logScroll');
+  const div = document.createElement('div');
+  div.className = 'log-entry' + (isCritical ? ' critical' : '');
+  div.innerHTML = `<span class="log-time">[${ts}]</span><span class="log-msg">${msg}</span>`;
+  scroll.prepend(div);
+  state.logLines.push({ ts, msg, isCritical });
+  // Keep last 50
+  while (scroll.children.length > 50) scroll.removeChild(scroll.lastChild);
+  state.totalLogged++;
+  document.getElementById('totalLog').textContent = `${state.totalLogged} events`;
+}
+
+// ── Anomaly activate/deactivate ──
+function setAnomalyState(active, reason) {
+  const container = document.getElementById('videoContainer');
+  const badge = document.getElementById('statusBadge');
+  const dot = document.getElementById('liveDot');
+
+  if (active && !state.isAnomaly) {
+    state.isAnomaly = true;
+    container.classList.add('anomaly-active');
+    badge.textContent = '⚠ ANOMALY DETECTED';
+    badge.classList.add('alert');
+    dot.classList.add('red');
+    state.anomalyCount++;
+    state.lastAnomalyTime = Date.now();
+    state.lastAnomalyType = reason;
+    state.anomalyTimestamps.push(Date.now());
+    document.getElementById('statAnomalies').textContent = state.anomalyCount;
+    document.getElementById('lastType').textContent = reason.substring(0, 30);
+    document.getElementById('lastTime').textContent = new Date().toTimeString().slice(0, 8);
+    addLog(`ANOMALY: ${reason}`, true);
+    updateThreat(Math.min(100, state.threatLevel + 30));
+  } else if (!active && state.isAnomaly) {
+    state.isAnomaly = false;
+    container.classList.remove('anomaly-active');
+    badge.textContent = 'SYSTEM ONLINE';
+    badge.classList.remove('alert');
+    dot.classList.remove('red');
+    updateThreat(Math.max(0, state.threatLevel - 10));
+  }
+}
+
+// ── Overlay canvas drawing ──
+function drawDetections(detections, canvas, video) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = video.videoWidth || canvas.offsetWidth;
+  canvas.height = video.videoHeight || canvas.offsetHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const w = canvas.width, h = canvas.height;
+
+  detections.forEach(det => {
+    const x = det.x1 * w, y = det.y1 * h;
+    const bw = (det.x2 - det.x1) * w, bh = (det.y2 - det.y1) * h;
+
+    const isAnomClass = RULES.forbidden_classes.includes(det.class.toLowerCase());
+    const borderColor = isAnomClass ? '#ff4444' : '#c8980a';
+    const glowColor = isAnomClass ? 'rgba(255,68,68,0.5)' : 'rgba(200,152,10,0.5)';
+
+    // Glow effect
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, bw, bh);
+
+    // Corners accent
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2.5;
+    const cs = 10;
+    ctx.beginPath();
+    ctx.moveTo(x, y + cs); ctx.lineTo(x, y); ctx.lineTo(x + cs, y);
+    ctx.moveTo(x + bw - cs, y); ctx.lineTo(x + bw, y); ctx.lineTo(x + bw, y + cs);
+    ctx.moveTo(x, y + bh - cs); ctx.lineTo(x, y + bh); ctx.lineTo(x + cs, y + bh);
+    ctx.moveTo(x + bw - cs, y + bh); ctx.lineTo(x + bw, y + bh); ctx.lineTo(x + bw, y + bh - cs);
+    ctx.stroke();
+
+    // Label
+    ctx.shadowBlur = 0;
+    const label = `${det.class.toUpperCase()} ${(det.confidence * 100).toFixed(0)}%`;
+    ctx.font = '600 10px "Share Tech Mono", monospace';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = isAnomClass ? 'rgba(192,57,43,0.85)' : 'rgba(0,10,20,0.85)';
+    ctx.fillRect(x, y - 18, tw + 10, 16);
+    ctx.fillStyle = isAnomClass ? '#ff6666' : '#ffd700';
+    ctx.fillText(label, x + 5, y - 6);
+  });
+}
+
+// ── FPS tracker ──
+function tickFps() {
+  state.fpsFrames++;
+  const now = Date.now();
+  if (now - state.fpsLast >= 1000) {
+    state.fps = state.fpsFrames;
+    state.fpsFrames = 0;
+    state.fpsLast = now;
+    document.getElementById('fpsDisplay').textContent = `FPS: ${state.fps}`;
+  }
+}
+
+// ── Clock & uptime ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('sysTime').textContent = now.toTimeString().slice(0, 8);
+
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('uptime').textContent = `${h}:${m}:${s}`;
+
+  // Time since last anomaly
+  if (state.lastAnomalyTime) {
+    const diff = Math.floor((Date.now() - state.lastAnomalyTime) / 1000);
+    document.getElementById('lastSince').textContent = `${diff}s ago`;
+  }
+
+  // Anomaly rate (last 60s)
+  const cutoff = Date.now() - 60000;
+  state.anomalyTimestamps = state.anomalyTimestamps.filter(t => t > cutoff);
+  document.getElementById('anomalyRate').textContent = `${state.anomalyTimestamps.length}.0/min`;
+
+  // Gradual threat decay
+  if (!state.isAnomaly && state.threatLevel > 0) {
+    updateThreat(state.threatLevel - 0.3);
+  }
+}
+
+// ── Main inference loop (simulated from webcam) ──
+// In production on Jetson: replace this with WebSocket messages from Python backend
+function simulateInference(detections) {
+  state.frameCount++;
+  document.getElementById('frameDisplay').textContent = String(state.frameCount).padStart(6, '0');
+  document.getElementById('statFrames').textContent = state.frameCount;
+
+  // Update person count
+  const persons = detections.filter(d => d.class === 'person');
+  state.personCount = persons.length;
+  state.objectCount = detections.length;
+  document.getElementById('statPersons').textContent = state.personCount;
+  document.getElementById('statObjects').textContent = state.objectCount;
+
+  // Evaluate rules
+  const reasons = evaluateAnomalies(detections);
+
+  if (reasons.length > 0) {
+    setAnomalyState(true, reasons[0]);
+    document.getElementById('anomalyTag').textContent = `⚠ ${reasons[0].substring(0, 40)}`;
+  } else {
+    setAnomalyState(false, null);
+  }
+
+  // Update confidence bars
+  const classes = ['person', 'cell phone', 'bottle', 'chair'];
+  const barIds = ['bar-person', 'bar-phone', 'bar-bottle', 'bar-chair'];
+  const confIds = ['conf-person', 'conf-phone', 'conf-bottle', 'conf-chair'];
+
+  classes.forEach((cls, i) => {
+    const match = detections.find(d => d.class.toLowerCase() === cls);
+    const pct = match ? Math.round(match.confidence * 100) : 0;
+    document.getElementById(barIds[i]).style.width = pct + '%';
+    document.getElementById(confIds[i]).textContent = pct ? `${pct}%` : '—';
+  });
+
+  tickFps();
+}
+
+// ── WebSocket bridge (connect to Python backend) ──
+let wsRetries = 0;
+function connectWebSocket() {
+  const ws = new WebSocket('ws://localhost:8765');
+  ws.onopen = () => {
+    addLog('WebSocket connected to Jetson backend');
+    wsRetries = 0;
+  };
+  ws.onmessage = (evt) => {
+    try {
+      const data = JSON.parse(evt.data);
+      // data = { detections: [{class, confidence, x1, y1, x2, y2, cx, cy}], latency_ms }
+      simulateInference(data.detections);
+      document.getElementById('latDisplay').textContent = data.latency_ms || '—';
+    } catch(e) {}
+  };
+  ws.onclose = () => {
+    if (wsRetries < 5) {
+      setTimeout(connectWebSocket, 3000);
+      wsRetries++;
+    }
+  };
+}
+
+// ── Live webcam feed (browser camera) ──
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+    const video = document.getElementById('liveVideo');
+    video.srcObject = stream;
+    document.getElementById('noCam').style.display = 'none';
+    addLog('Camera feed initialized');
+
+    // Canvas for bounding boxes
+    const canvas = document.getElementById('overlayCanvas');
+
+    // Demo: run mock detections on the live feed
+    startMockDetectionLoop(video, canvas);
+  } catch(e) {
+    addLog('Camera unavailable — demo mode active');
+    startDemoMode();
+  }
+}
+
+// ── Demo / fallback mode ──
+function startDemoMode() {
+  document.getElementById('noCam').style.display = 'none';
+  const canvas = document.getElementById('overlayCanvas');
+  canvas.style.background = 'linear-gradient(135deg, #030810 0%, #050f1f 100%)';
+  addLog('DEMO MODE: Simulated detections active');
+
+  let tick = 0;
+  setInterval(() => {
+    tick++;
+    // Simulate varied detections
+    const detections = [{ class: 'person', confidence: 0.91, x1: 0.1, y1: 0.1, x2: 0.35, y2: 0.85, cx: 0.225, cy: 0.47 }];
+    if (tick % 30 < 8) detections.push({ class: 'person', confidence: 0.87, x1: 0.5, y1: 0.12, x2: 0.72, y2: 0.82, cx: 0.61, cy: 0.47 });
+    if (tick % 45 < 5) detections.push({ class: 'cell phone', confidence: 0.76, x1: 0.62, y1: 0.6, x2: 0.73, y2: 0.78, cx: 0.675, cy: 0.69 });
+    if (tick % 20 < 12) detections.push({ class: 'bottle', confidence: 0.65, x1: 0.78, y1: 0.5, x2: 0.85, y2: 0.75, cx: 0.815, cy: 0.625 });
+    if (tick % 60 < 4) {
+      detections.push({ class: 'person', confidence: 0.83, x1: 0.34, y1: 0.1, x2: 0.55, y2: 0.85, cx: 0.245, cy: 0.47 });
+      detections.push({ class: 'person', confidence: 0.79, x1: 0.7, y1: 0.12, x2: 0.9, y2: 0.82, cx: 0.81, cy: 0.47 });
+    }
+
+    simulateInference(detections);
+    drawDetections(detections, canvas, { videoWidth: canvas.offsetWidth, videoHeight: canvas.offsetHeight });
+    document.getElementById('latDisplay').textContent = (12 + Math.random() * 8).toFixed(1);
+  }, 100);
+}
+
+function startMockDetectionLoop(video, canvas) {
+  let tick = 0;
+  setInterval(() => {
+    tick++;
+    const detections = [{ class: 'person', confidence: 0.91, x1: 0.15, y1: 0.1, x2: 0.45, y2: 0.9, cx: 0.3, cy: 0.5 }];
+    if (tick % 40 < 6) detections.push({ class: 'cell phone', confidence: 0.78, x1: 0.5, y1: 0.5, x2: 0.62, y2: 0.7, cx: 0.56, cy: 0.6 });
+    simulateInference(detections);
+    drawDetections(detections, canvas, video);
+    document.getElementById('latDisplay').textContent = (10 + Math.random() * 6).toFixed(1);
+  }, 100);
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  setInterval(updateClock, 500);
+  addLog('J.A.R.V.I.S. Anomaly Detection Module initialized');
+  addLog('Loading COCO detection model…');
+  setTimeout(() => addLog('Model loaded — all systems nominal'), 900);
+  startCamera();
+  connectWebSocket();
+});
+</script>
+</body>
+</html>
