@@ -126,10 +126,9 @@ output/
 
 ## Jetson Detection Screenshot
 
-*(Add your phone screenshot of the Jetson output here)*
 
 <p align="center">
-  <img src="docs/jetson_photo.jpg" alt="Jetson output photo" width="500"/>
+  <img src="docs/jetson_photo.jpeg" alt="Jetson output photo" width="500"/>
 </p>
 
 ---
