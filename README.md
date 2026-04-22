@@ -98,7 +98,7 @@ RULES = {
 ```
 output/
 ├── anomaly_log.csv          # timestamp, frame, rule, detail, objects
-└── anomaly_images/          # annotated frames (optional)
+└── anomaly_images/          # annotated frames
 ```
 
 **Sample `anomaly_log.csv`:**
@@ -146,22 +146,6 @@ jarvis-anomaly-detection/
 - **Add new rules:** Extend `evaluate_rules()` in `anomaly_detector.py`
 - **Confidence tuning:** `--threshold 0.65` to reduce false positives
 - **Cooldown:** Adjust `cooldown_seconds` to avoid duplicate logs
-
----
-
-## Observations & Results
-
-> *(Fill this in after running your system)*
-
-- Total frames processed: `___`
-- Total anomalies detected: `___`
-- False positive rate: `___` (estimated)
-- Most common anomaly type: `___`
-
-**Improvement ideas:**
-1. Add helmet detection rule (missing PPE)
-2. Confidence ensemble — require 2 consecutive frames for alert
-3. Email/SMS alert via Twilio when anomaly count exceeds threshold
 
 ---
 
